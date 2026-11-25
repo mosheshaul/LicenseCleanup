@@ -1,0 +1,40 @@
+# --- Secrets: never commit ---
+.env
+.env.*
+*.env
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials*.json
+config/*.local.yaml
+config/secrets*.yaml
+
+# --- Generated output (contains personal data) ---
+reports/*
+!reports/.gitkeep
+logs/*
+!logs/.gitkeep
+.state/
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

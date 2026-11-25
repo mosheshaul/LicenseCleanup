@@ -1,0 +1,11 @@
+# Licenses/users that this automation must NEVER revoke.
+# See exclusions.example.yaml for the format. Changes go through a reviewed pull request.
+
+emails: []
+email_patterns: []
+service_accounts: []
+protected_users: []
+license_ids: []
+product_codes: []
+team_ids: []
+team_names: []

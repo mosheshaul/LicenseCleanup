@@ -1,4 +1,5 @@
--r requirements.txt
+# Test and audit tools. Installed into a SEPARATE virtualenv (.venv-test) in Jenkins,
+# so they never run in the environment that holds the JetBrains/AD credentials.
 pytest==9.2.0
 pytest-cov==7.1.0
 responses==0.26.3

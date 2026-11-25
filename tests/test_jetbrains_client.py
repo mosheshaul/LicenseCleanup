@@ -190,3 +190,21 @@ def test_revoke_5xx_is_uncertain_and_not_retried() -> None:
 def test_get_license_404_returns_none() -> None:
     responses.get(f"{LICENSES}/L9", status=404)
     assert client().get_license("L9") is None
+
+
+@responses.activate
+def test_get_never_follows_redirects_with_the_api_key() -> None:
+    responses.get(f"{BASE_URL}/token", status=302, headers={"Location": "https://attacker.example.test/collect"})
+    responses.get("https://attacker.example.test/collect", json={})
+    with pytest.raises(JetBrainsAPIError, match="redirect"):
+        client().get_token_info()
+    assert all("attacker" not in call.request.url for call in responses.calls)
+
+
+@responses.activate
+def test_revoke_redirect_is_uncertain_and_not_followed() -> None:
+    responses.post(f"{BASE_URL}/customer/licenses/revoke", status=307,
+                   headers={"Location": "https://attacker.example.test/collect"})
+    result = client().revoke_license("L1")
+    assert result.outcome is RevokeOutcome.UNCERTAIN
+    assert len(responses.calls) == 1

@@ -129,6 +129,20 @@ def _bool(value: str | None) -> bool | None:
     raise argparse.ArgumentTypeError(f"Expected true/false, got {value!r}")
 
 
+def _optional_number(kind: Callable[[str], Any]) -> Callable[[str], Any]:
+    """argparse type: an empty string (blank Jenkins parameter) means "use the config value"."""
+
+    def parse(value: str) -> Any:
+        if value is None or value.strip() == "":
+            return None
+        try:
+            return kind(value)
+        except ValueError as exc:
+            raise argparse.ArgumentTypeError(f"Expected a number, got {value!r}") from exc
+
+    return parse
+
+
 # ------------------------------------------------------------------- stages
 def cmd_init(args: argparse.Namespace, state: State) -> int:
     """Create the execution context and resolve dry-run vs production."""
@@ -451,11 +465,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--execution-id", default=None)
     parser.add_argument("--trigger", choices=["manual", "scheduled"], default="manual")
     parser.add_argument("--dry-run", default="true", help="true/false (manual runs only)")
-    parser.add_argument("--inactivity-months", type=int, default=None)
+    parser.add_argument("--inactivity-months", type=_optional_number(int), default=None)
     parser.add_argument("--revoke-disabled-users", default=None)
     parser.add_argument("--revoke-inactive-users", default=None)
-    parser.add_argument("--max-revocations", type=int, default=None)
-    parser.add_argument("--max-revocation-percent", type=float, default=None)
+    parser.add_argument("--max-revocations", type=_optional_number(int), default=None)
+    parser.add_argument("--max-revocation-percent", type=_optional_number(float), default=None)
     parser.add_argument("--log-level", default=None)
     return parser
 

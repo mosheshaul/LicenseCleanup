@@ -310,3 +310,9 @@ def test_consecutive_failures_abort_remaining(ad_config, policy) -> None:
     assert run.aborted
     assert len(fake.revoke_calls) == 2
     assert [d.result for d in decisions[2:]] == [Result.ABORTED] * 3
+
+
+def test_inactive_without_assignment_date_goes_to_manual_review(policy) -> None:
+    # Without lastAssignmentDate the last-seen date may belong to a previous assignee.
+    lic = make_license(last_seen=datetime(2025, 1, 1, tzinfo=UTC), assigned=None)
+    assert evaluate_license(lic, ENABLED, NO_EXCL, policy, NOW).action is Action.MANUAL_REVIEW

@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-25
+
+### Security
+- JetBrains API and Slack calls no longer follow HTTP redirects, so the API key header cannot be forwarded to another host.
+- SMTP login is refused unless STARTTLS is enabled.
+- Licenses without a `lastAssignmentDate` are no longer revoked for inactivity (last-seen date could belong to a previous assignee); they go to manual review.
+- Manual Jenkins parameters can no longer lower `INACTIVITY_MONTHS` or raise `MAX_REVOCATION_PERCENT` beyond the reviewed config; blank parameters use the config values.
+- Runtime dependencies are hash-locked (including transitive packages) and installed with `--require-hashes`; test tools run in a separate virtualenv; the package runs from source instead of an editable install.
+- CSV formula-injection protection also covers values with leading whitespace.
+- Dependabot configuration for pip and GitHub security updates.
+
 ## [1.0.0] - 2026-11-25
 
 ### Added

@@ -64,3 +64,8 @@ def test_pricing_only_when_provided(policy) -> None:
                             pricing={"II": 100.0}, pricing_source="FY27 quote")
     assert summary["cost"]["estimated_value_of_reclaimed_capacity"] == 100.0
     assert summary["cost"]["pricing_source"] == "FY27 quote"
+
+
+def test_formula_after_leading_whitespace_is_neutralised() -> None:
+    assert sanitize_cell("  =HYPERLINK(\"x\")").startswith("'")
+    assert sanitize_cell("\t+cmd").startswith("'")

@@ -70,11 +70,11 @@ pipeline {
 
     parameters {
         booleanParam(name: 'DRY_RUN', defaultValue: true, description: 'Manual runs only. Uncheck to revoke (requires execution.production_enabled: true in config). Ignored by scheduled runs.')
-        string(name: 'INACTIVITY_MONTHS', defaultValue: '6', description: 'Calendar months without product usage before a license is considered inactive (manual runs only).')
+        string(name: 'INACTIVITY_MONTHS', defaultValue: '', description: 'Manual runs only. Empty = policy.inactivity_months from config. May only be RAISED above the approved value.')
         booleanParam(name: 'REVOKE_DISABLED_USERS', defaultValue: true, description: 'Revoke licenses of users disabled in Active Directory (manual runs only).')
         booleanParam(name: 'REVOKE_INACTIVE_USERS', defaultValue: true, description: 'Revoke licenses unused for INACTIVITY_MONTHS (manual runs only).')
-        string(name: 'MAX_REVOCATIONS', defaultValue: '20', description: 'Abort if more revocations are proposed (capped by safety.hard_max_revocations).')
-        string(name: 'MAX_REVOCATION_PERCENT', defaultValue: '10', description: 'Abort if more than this % of assigned licenses would be revoked.')
+        string(name: 'MAX_REVOCATIONS', defaultValue: '', description: 'Manual runs only. Empty = safety.max_revocations from config. Capped by safety.hard_max_revocations.')
+        string(name: 'MAX_REVOCATION_PERCENT', defaultValue: '', description: 'Manual runs only. Empty = safety.max_revocation_percent from config. May only be LOWERED.')
         choice(name: 'LOG_LEVEL', choices: ['INFO', 'DEBUG', 'WARNING', 'ERROR'], description: 'Log verbosity.')
     }
 
@@ -82,6 +82,8 @@ pipeline {
         STATE_DIR = "${WORKSPACE}/.state"
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
         PYTHONDONTWRITEBYTECODE = '1'
+        // The package is run from source (no editable install, so no build backend is fetched).
+        PYTHONPATH = "${WORKSPACE}/src"
         // Corporate proxy / CA (uncomment and adjust if required):
         // HTTPS_PROXY = 'http://proxy.example.com:8080'
         // NO_PROXY    = '.corp.example.com'
@@ -102,28 +104,33 @@ pipeline {
 
         stage('2. Prepare Python environment') {
             steps {
-                sh label: 'Create virtualenv', script: '''
+                // Two virtualenvs: .venv holds only the hash-pinned runtime dependencies and is the
+                // only one used while credentials are bound; .venv-test holds pytest/pip-audit.
+                sh label: 'Create virtualenvs', script: '''
                     set -eu
-                    rm -rf .venv .state
+                    rm -rf .venv .venv-test .state
                     ''' + PYTHON_BIN + ''' -m venv .venv
-                    . .venv/bin/activate
-                    python --version
+                    ''' + PYTHON_BIN + ''' -m venv .venv-test
+                    .venv/bin/python --version
                 '''
             }
         }
 
         stage('3. Install dependencies') {
             steps {
-                sh label: 'pip install', script: '''
+                sh label: 'pip install (runtime, hash-verified)', script: '''
                     set -eu
-                    . .venv/bin/activate
-                    pip install --quiet -r requirements-dev.txt
-                    pip install --quiet --no-deps -e .
+                    .venv/bin/pip install --quiet --require-hashes --no-deps --only-binary :all: -r requirements.txt
+                    .venv/bin/pip check
+                '''
+                sh label: 'pip install (test tools, separate venv)', script: '''
+                    set -eu
+                    .venv-test/bin/pip install --quiet --require-hashes --no-deps --only-binary :all: -r requirements.txt
+                    .venv-test/bin/pip install --quiet -r requirements-dev.txt
                 '''
                 script {
                     def audit = sh(returnStatus: true, label: 'Dependency vulnerability scan', script: '''
-                        . .venv/bin/activate
-                        pip-audit -r requirements.txt --progress-spinner off
+                        .venv-test/bin/pip-audit -r requirements.txt --require-hashes --progress-spinner off
                     ''')
                     if (audit != 0) {
                         unstable('pip-audit reported vulnerable dependencies (or could not reach the vulnerability database)')
@@ -136,8 +143,7 @@ pipeline {
             steps {
                 sh label: 'pytest', script: '''
                     set -eu
-                    . .venv/bin/activate
-                    python -m pytest --junitxml=reports/junit.xml -q
+                    .venv-test/bin/python -m pytest --junitxml=reports/junit.xml -q
                 '''
             }
             post { always { junit allowEmptyResults: true, testResults: 'reports/junit.xml' } }

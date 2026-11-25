@@ -39,8 +39,8 @@ Rotation: update the credential in place (same ID), then run a manual dry run. S
 
 ## Create the job
 
-1. Put this repository in your Git server.
-2. **New Item > Pipeline** (or a folder containing it), name e.g. `jetbrains-license-cleanup`.
+1. Put this repository in a **private** Git repository with branch protection on `main` (pull request + review required), because whoever can change `main` controls what runs with the JetBrains and AD credentials.
+2. **New Item > Pipeline** (not a Multibranch Pipeline or Organization Folder: those would run the Jenkinsfile of every branch or pull request with the credentials bound), optionally inside a folder, named e.g. `jetbrains-license-cleanup`.
 3. **Pipeline > Definition: Pipeline script from SCM**, select the repository and branch `main`, *Script Path* `Jenkinsfile`.
 4. Restrict job permissions: only the license administrators group should have *Build*, *Configure* and *Read* (artifacts contain employee emails).
 5. Save, then click **Build Now** once. The first build registers the parameters and the cron trigger. It runs in dry-run mode.

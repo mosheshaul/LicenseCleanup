@@ -229,7 +229,8 @@ class JetBrainsClient:
         last_error = ""
         for attempt in range(self.max_retries + 1):
             try:
-                response = self.session.get(url, params=params, timeout=self.timeout)
+                # Never follow redirects: requests would re-send the X-Api-Key header to the new location.
+                response = self.session.get(url, params=params, timeout=self.timeout, allow_redirects=False)
             except (requests.ConnectionError, requests.Timeout) as exc:
                 last_error = f"network error: {type(exc).__name__}"
                 log.warning("GET %s failed (%s), attempt %d/%d", path, last_error, attempt + 1, self.max_retries + 1)
@@ -241,6 +242,11 @@ class JetBrainsClient:
                 raise JetBrainsAuthError(
                     f"JetBrains API rejected the credentials or permissions for {path}: HTTP {response.status_code} {text}",
                     response.status_code, code,
+                )
+            if 300 <= response.status_code < 400:
+                raise JetBrainsAPIError(
+                    f"GET {path} returned an unexpected redirect (HTTP {response.status_code}); refusing to follow it "
+                    "so the API token is not sent to another location", response.status_code,
                 )
             if response.status_code == 404 and allow_404:
                 return None
@@ -375,7 +381,8 @@ class JetBrainsClient:
         url = f"{self.base_url}/customer/licenses/revoke"
         for attempt in range(self.max_retries + 1):
             try:
-                response = self.session.post(url, params={"licenseId": license_id}, timeout=self.timeout)
+                response = self.session.post(url, params={"licenseId": license_id}, timeout=self.timeout,
+                                             allow_redirects=False)
             except (requests.ConnectionError, requests.Timeout) as exc:
                 return RevokeResponse(RevokeOutcome.UNCERTAIN, [], 0, message=f"network error: {type(exc).__name__}")
             if response.status_code == 429 and attempt < self.max_retries:
@@ -384,6 +391,10 @@ class JetBrainsClient:
             if response.status_code in (401, 403):
                 code, text = _safe_error_text(response)
                 raise JetBrainsAuthError(f"Revoke rejected: HTTP {response.status_code} {text}", response.status_code, code)
+            if 300 <= response.status_code < 400:
+                # Not followed (would leak the token); the state is re-read by the caller.
+                return RevokeResponse(RevokeOutcome.UNCERTAIN, [], response.status_code,
+                                      message=f"unexpected redirect HTTP {response.status_code} (not followed)")
             if response.status_code >= 500:
                 return RevokeResponse(RevokeOutcome.UNCERTAIN, [], response.status_code, message=f"HTTP {response.status_code}")
             if response.status_code >= 400:

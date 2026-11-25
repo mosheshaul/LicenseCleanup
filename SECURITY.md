@@ -16,7 +16,9 @@
 | Over-privileged accounts | Read-only AD account (not Domain Admin); JetBrains token from a dedicated account with only the needed permission |
 | Concurrency/races | `disableConcurrentBuilds`; per-run de-duplication; revalidation right before each write |
 | Personal data exposure | Report files written with mode 600; workspace state wiped after each build; job read access restricted; Slack/email carry no names or emails |
-| Supply chain | Pinned dependencies; `pip-audit` on every build |
+| Supply chain | Runtime dependencies (including transitive ones) hash-locked and installed with `--require-hashes --only-binary :all:`; test tools in a separate virtualenv that never sees credentials; no build backend fetched at runtime; `pip-audit` on every build; Dependabot alerts |
+| Credential forwarding | HTTP redirects are never followed (requests would resend `X-Api-Key` to the new host); SMTP login refused without STARTTLS |
+| Parameter abuse | Manual build parameters cannot lower the inactivity period or raise the percentage limit set in the reviewed config |
 
 ## Credential handling
 
@@ -31,7 +33,8 @@ Assignee emails and names (from JetBrains), `sAMAccountName`, `userPrincipalName
 ## Hardening options
 
 - Use a folder-scoped credentials store, or an external secrets manager (HashiCorp Vault, Azure Key Vault, CyberArk) through its Jenkins plugin that exposes the same credential IDs.
-- Install dependencies from an internal mirror and add `--require-hashes` with a hash-locked requirements file.
+- Install dependencies from an internal mirror (the hash lock still applies).
+- Keep the GitHub repository private and protect `main` (required review, no force-push), since the config names internal hosts and the exclusion list holds employee emails.
 - Run the agent in an isolated network segment that can reach only the hosts listed in [jenkins_setup.md](docs/jenkins_setup.md#agent-requirements).
 
 ## Reporting a vulnerability

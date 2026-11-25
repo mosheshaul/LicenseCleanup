@@ -1,0 +1,89 @@
+# JetBrains license cleanup - NON-SENSITIVE configuration.
+# Copy to config/config.yaml and adjust. Secrets (API token, customer code,
+# AD password, Slack webhook, SMTP password) MUST come from Jenkins
+# credentials via environment variables. The loader rejects secret-looking keys.
+
+log_level: INFO
+exclusions_file: config/exclusions.yaml
+
+execution:
+  # Master switch. While false, every run is a dry run no matter what
+  # parameters are passed. Changing it requires a reviewed commit.
+  production_enabled: false
+  # What timer-triggered (monthly) runs do: dry-run | production.
+  # Scheduled runs ignore Jenkins build parameters entirely.
+  scheduled_mode: dry-run
+  # Required when production_enabled is true (audit trail of the approval).
+  approved_by: ""          # e.g. "IT Asset Management - CHG0012345"
+  approved_on: ""          # e.g. "2027-01-15"
+
+policy:
+  inactivity_months: 6          # calendar months, not days
+  revoke_disabled_users: true
+  revoke_inactive_users: true
+  min_assignment_age_days: 30   # JetBrains refuses revocation of licenses assigned < 30 days ago
+
+jetbrains:
+  base_url: https://account.jetbrains.com/api/v1
+  # Empty = whole organization (organization token). Otherwise only these
+  # team IDs are processed (works with a team token).
+  team_ids: []
+  page_size: 100
+  max_pages: 1000
+  connect_timeout_seconds: 10
+  read_timeout_seconds: 60
+  max_retries: 4
+  backoff_base_seconds: 2
+  backoff_max_seconds: 60
+  # Path to a PEM bundle containing your corporate root CA (for TLS-inspecting
+  # proxies). null = system/certifi trust store. Verification is never disabled.
+  ca_bundle: null
+  # Abort if the API does not return X-Total-Count (completeness can't be proven).
+  require_total_count_header: true
+  # Abort if fewer licenses than this are returned (protects against empty/partial responses).
+  expected_min_licenses: 1
+
+active_directory:
+  domain: corp.example.com                 # placeholder
+  server: dc01.corp.example.com            # placeholder; use a DNS name that matches the DC certificate
+  port: 636                                # LDAPS only (636 or 3269 for Global Catalog over TLS)
+  base_dn: "DC=corp,DC=example,DC=com"     # placeholder
+  search_scope: SUBTREE
+  connect_timeout_seconds: 10
+  search_timeout_seconds: 30
+  ca_certs_file: /etc/ssl/certs/corp-root-ca.pem   # placeholder: CA that signed the DC certificates
+  # Fallback match on sAMAccountName == email local part. Such matches are
+  # always flagged for manual review, never revoked automatically.
+  allow_samaccountname_fallback: true
+  # Domains of contractors/partners that are not expected in AD.
+  external_domains: []
+  # Old domain -> current domain (e.g. after a rebrand), tried after the original address.
+  email_domain_aliases: {}
+
+safety:
+  max_revocations: 20              # per execution (manual runs may lower/raise up to hard_max)
+  hard_max_revocations: 50         # absolute ceiling, cannot be overridden by build parameters
+  max_revocation_percent: 10       # of assigned licenses
+  max_ad_lookup_failure_percent: 5
+  max_consecutive_revocation_failures: 3
+
+reporting:
+  output_dir: reports
+  currency: USD
+  # Optional, administrator-provided per-license prices keyed by product code
+  # (e.g. II: 0). Leave empty to report reclaimed capacity only.
+  pricing: {}
+  pricing_source: ""
+
+notifications:
+  include_product_breakdown: true
+  slack:
+    enabled: false               # webhook URL comes from Jenkins credential 'slack-webhook-url'
+    channel_is_private: true
+  email:
+    enabled: false
+    smtp_host: smtp.example.com
+    smtp_port: 587
+    use_starttls: true
+    sender: jenkins@example.com
+    recipients: []

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jetbrains-license-cleanup"
+version = "1.0.0"
+description = "Monthly JetBrains license cleanup based on Active Directory status and product usage"
+requires-python = ">=3.10"
+dependencies = ["requests", "ldap3", "PyYAML"]
+
+[project.scripts]
+license-cleanup = "license_cleanup.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra --strict-markers"
+filterwarnings = [
+    "error::DeprecationWarning:license_cleanup.*",
+    "ignore::DeprecationWarning:ldap3.*",
+]
+
+[tool.coverage.run]
+source = ["license_cleanup"]
+branch = true

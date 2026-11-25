@@ -1,0 +1,18 @@
+# Licenses/users that this automation must NEVER revoke.
+# Copy to config/exclusions.yaml. Emails are compared case-insensitively.
+# All entries below are fictional examples.
+
+emails:
+  - ceo@example.com
+email_patterns:            # shell-style wildcards
+  - "svc-*@example.com"
+service_accounts:
+  - build-agent@example.com
+protected_users:
+  - security-team-lead@example.com
+license_ids:
+  - "ABC1234567"
+product_codes:             # JetBrains product codes, e.g. II, PC, WS, DB, RD, CL, PS, ALL
+  - "DPN"
+team_ids: []               # JetBrains team IDs
+team_names: []             # JetBrains team names

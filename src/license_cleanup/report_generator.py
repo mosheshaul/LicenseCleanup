@@ -34,7 +34,8 @@ def sanitize_cell(value: Any) -> str:
     """Neutralise spreadsheet formula injection (CWE-1236)."""
     text = "" if value is None else str(value)
     text = text.replace("\r", " ").replace("\n", " ")
-    if text and text[0] in _FORMULA_PREFIXES:
+    stripped = text.lstrip(" \t")
+    if stripped and stripped[0] in _FORMULA_PREFIXES:
         # Leave plain negative numbers alone; anything else gets a leading quote.
         try:
             float(text)

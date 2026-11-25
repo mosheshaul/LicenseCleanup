@@ -48,3 +48,30 @@ def test_slack_failure_is_reported_not_raised() -> None:
 def test_missing_webhook_is_reported() -> None:
     errors = notify(NotificationConfig(slack=SlackConfig(enabled=True)), Secrets(), SUMMARY)
     assert errors == ["Slack enabled but SLACK_WEBHOOK_URL is not set"]
+
+
+def test_smtp_credentials_never_sent_without_starttls(monkeypatch) -> None:
+    from license_cleanup.config_manager import EmailConfig
+
+    logins: list[str] = []
+
+    class FakeSMTP:
+        def __init__(self, *a, **k) -> None: ...
+        def __enter__(self): return self
+        def __exit__(self, *a) -> None: ...
+        def starttls(self, **k) -> None: ...
+        def login(self, user, password) -> None: logins.append(user)
+        def send_message(self, msg) -> None: ...
+
+    monkeypatch.setattr("license_cleanup.notification_manager.smtplib.SMTP", FakeSMTP)
+    cfg = NotificationConfig(email=EmailConfig(enabled=True, smtp_host="smtp.example.test", use_starttls=False,
+                                               sender="a@example.test", recipients=["b@example.test"]))
+    errors = notify(cfg, Secrets(smtp_user="u", smtp_password="fake-pass"), SUMMARY)
+    assert logins == [] and errors and "RuntimeError" in errors[0]
+
+
+@responses.activate
+def test_slack_redirect_is_not_followed() -> None:
+    responses.post(WEBHOOK, status=302, headers={"Location": "https://attacker.example.test/"})
+    errors = notify(NotificationConfig(slack=SlackConfig(enabled=True)), Secrets(slack_webhook_url=WEBHOOK), SUMMARY)
+    assert errors and len(responses.calls) == 1

@@ -1,0 +1,4 @@
+# Top-level runtime dependencies (source for requirements.txt; see that file to regenerate).
+requests==2.34.2
+ldap3==2.9.1
+PyYAML==6.0.4

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jetbrains-license-cleanup"
-version = "1.0.0"
+version = "1.0.1"
 description = "Monthly JetBrains license cleanup based on Active Directory status and product usage"
 requires-python = ">=3.10"
 dependencies = ["requests", "ldap3", "PyYAML"]

@@ -62,8 +62,9 @@ def build_message(summary: dict[str, Any], build_url: str = "", report_url: str 
 def send_slack(webhook_url: str, subject: str, body: str, timeout: float = 15.0) -> None:
     if not webhook_url.startswith("https://"):
         raise ValueError("Slack webhook URL must use HTTPS")
-    response = requests.post(webhook_url, json={"text": f"*{subject}*\n```{body}```"}, timeout=timeout)
-    if response.status_code >= 400:
+    response = requests.post(webhook_url, json={"text": f"*{subject}*\n```{body}```"}, timeout=timeout,
+                             allow_redirects=False)
+    if response.status_code >= 300:
         raise RuntimeError(f"Slack webhook returned HTTP {response.status_code}")
 
 
@@ -79,6 +80,8 @@ def send_email(cfg: NotificationConfig, secrets: Secrets, subject: str, body: st
         if email_cfg.use_starttls:
             smtp.starttls(context=context)
         if secrets.smtp_user and secrets.smtp_password:
+            if not email_cfg.use_starttls:
+                raise RuntimeError("Refusing to send SMTP credentials over an unencrypted connection (use_starttls is false)")
             smtp.login(secrets.smtp_user, secrets.smtp_password)
         smtp.send_message(msg)
 

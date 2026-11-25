@@ -149,7 +149,10 @@ def evaluate_license(
                       "Offline activation code generated: IDE does not report usage, last-seen date is unreliable")
     if lic.last_seen_date is None:
         return decide(Action.MANUAL_REVIEW, "Product usage date unavailable (missing usage is not proof of non-use)")
-    if lic.last_assignment_date and lic.last_seen_date < lic.last_assignment_date:
+    if lic.last_assignment_date is None:
+        return decide(Action.MANUAL_REVIEW,
+                      "Assignment date unavailable, so the last-seen date cannot be attributed to the current assignee")
+    if lic.last_seen_date < lic.last_assignment_date:
         return decide(Action.MANUAL_REVIEW,
                       "Last-seen date predates the current assignment, so it may belong to a previous assignee")
     if lic.last_seen_date > now + timedelta(days=1):

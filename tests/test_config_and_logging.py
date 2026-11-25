@@ -83,3 +83,21 @@ def test_log_filter_redacts_records() -> None:
     record = logging.LogRecord("x", logging.INFO, __file__, 1, "value %s", ("another-fake-secret",), None)
     SecretRedactingFilter().filter(record)
     assert "another-fake-secret" not in record.getMessage()
+
+
+def test_overrides_cannot_lower_inactivity_or_raise_percent(tmp_path) -> None:
+    config = load_config(write(tmp_path, BASE))
+    with pytest.raises(ConfigError, match="INACTIVITY_MONTHS"):
+        apply_overrides(config, {"inactivity_months": config.policy.inactivity_months - 1})
+    with pytest.raises(ConfigError, match="MAX_REVOCATION_PERCENT"):
+        apply_overrides(config, {"max_revocation_percent": config.safety.max_revocation_percent + 1})
+    apply_overrides(config, {"inactivity_months": config.policy.inactivity_months + 6, "max_revocation_percent": 1})
+    assert config.safety.max_revocation_percent == 1
+
+
+def test_blank_jenkins_parameters_mean_use_config() -> None:
+    from license_cleanup.main import build_parser
+
+    args = build_parser().parse_args(["init", "--inactivity-months", "", "--max-revocations", " ",
+                                      "--max-revocation-percent", ""])
+    assert args.inactivity_months is None and args.max_revocations is None and args.max_revocation_percent is None

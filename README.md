@@ -55,7 +55,8 @@ jetbrains-license-cleanup/
 ├── Jenkinsfile                  # Declarative pipeline (18 stages, monthly cron + manual)
 ├── README.md  SECURITY.md  CHANGELOG.md
 ├── .gitignore
-├── requirements.txt             # pinned runtime deps
+├── requirements.in              # top-level runtime pins (source for requirements.txt)
+├── requirements.txt             # hash-locked runtime deps incl. transitive (pip --require-hashes)
 ├── requirements-dev.txt         # pinned test/scan deps (pytest, responses, pip-audit)
 ├── pyproject.toml
 ├── config/
@@ -86,7 +87,8 @@ Requires Python 3.10+ and network access to `account.jetbrains.com` and a domain
 
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements-dev.txt && pip install --no-deps -e .
+pip install --require-hashes --no-deps -r requirements.txt && pip install -r requirements-dev.txt
+export PYTHONPATH=src                                   # run from source: python -m license_cleanup ...
 
 cp config/config.example.yaml config/config.yaml        # then edit the placeholders
 cp config/exclusions.example.yaml config/exclusions.yaml
@@ -130,7 +132,7 @@ Secrets are read only from environment variables, which Jenkins injects per stag
 | `SLACK_WEBHOOK_URL` (optional) | `slack-webhook-url` | Secret text |
 | `SMTP_USER` / `SMTP_PASSWORD` (optional) | `smtp-relay-account` | Username with password |
 
-Manual Jenkins runs can override `INACTIVITY_MONTHS`, `REVOKE_DISABLED_USERS`, `REVOKE_INACTIVE_USERS`, `MAX_REVOCATIONS` (never above `safety.hard_max_revocations`), `MAX_REVOCATION_PERCENT` and `LOG_LEVEL`. **Scheduled runs ignore all parameters.**
+Manual Jenkins runs can override `INACTIVITY_MONTHS`, `REVOKE_DISABLED_USERS`, `REVOKE_INACTIVE_USERS`, `MAX_REVOCATIONS` (never above `safety.hard_max_revocations`), `MAX_REVOCATION_PERCENT` and `LOG_LEVEL`. Blank numeric parameters mean "use the config value". Parameters can never loosen the reviewed policy: `INACTIVITY_MONTHS` can only be raised and `MAX_REVOCATION_PERCENT` only lowered compared with `config/config.yaml`. **Scheduled runs ignore all parameters.**
 
 ## Exclusions
 

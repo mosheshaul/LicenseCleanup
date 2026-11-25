@@ -318,12 +318,21 @@ def load_config(config_path: str | Path, exclusions_path: str | Path | None = No
 def apply_overrides(config: AppConfig, overrides: dict[str, Any]) -> AppConfig:
     """Apply manual-run parameter overrides (from Jenkins build parameters).
 
-    Overrides may only make a run *safer* than the hard limits in the
-    reviewed configuration file: MAX_REVOCATIONS is capped at
-    ``safety.hard_max_revocations``.
+    Overrides may not loosen the reviewed policy beyond its limits:
+
+    * ``inactivity_months`` can only be raised (a longer grace period), never
+      lowered below the reviewed configuration value;
+    * ``max_revocation_percent`` can only be lowered;
+    * ``max_revocations`` is capped at ``safety.hard_max_revocations``.
     """
     if overrides.get("inactivity_months") is not None:
-        config.policy.inactivity_months = int(overrides["inactivity_months"])
+        months = int(overrides["inactivity_months"])
+        if months < config.policy.inactivity_months:
+            raise ConfigError(
+                f"INACTIVITY_MONTHS={months} is below the approved policy ({config.policy.inactivity_months}); "
+                "lowering it requires a reviewed change to config/config.yaml"
+            )
+        config.policy.inactivity_months = months
     if overrides.get("revoke_disabled_users") is not None:
         config.policy.revoke_disabled_users = bool(overrides["revoke_disabled_users"])
     if overrides.get("revoke_inactive_users") is not None:
@@ -331,7 +340,13 @@ def apply_overrides(config: AppConfig, overrides: dict[str, Any]) -> AppConfig:
     if overrides.get("max_revocations") is not None:
         config.safety.max_revocations = int(overrides["max_revocations"])
     if overrides.get("max_revocation_percent") is not None:
-        config.safety.max_revocation_percent = float(overrides["max_revocation_percent"])
+        percent = float(overrides["max_revocation_percent"])
+        if percent > config.safety.max_revocation_percent:
+            raise ConfigError(
+                f"MAX_REVOCATION_PERCENT={percent} is above the approved limit ({config.safety.max_revocation_percent}); "
+                "raising it requires a reviewed change to config/config.yaml"
+            )
+        config.safety.max_revocation_percent = percent
     if overrides.get("log_level"):
         config.log_level = str(overrides["log_level"])
     validate_config(config)
